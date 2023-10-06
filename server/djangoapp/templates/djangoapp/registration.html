@@ -6,6 +6,13 @@
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
 </head>
     <body>
-    <!--Add a registration form here -->
+        <form class="nav-item" action="signup" method="post">
+            {% csrf_token %}
+            <input placeholder="Username" type="text" name="username">
+            <input placeholder="First name" type="text" name="firstname">
+            <input placeholder="Last name" type="text" name="lastname">
+            <input placeholder="Password" type="password" name="password">
+            <input type="submit" value="Sign up">    
+        <form>
     </body>
 </html>
