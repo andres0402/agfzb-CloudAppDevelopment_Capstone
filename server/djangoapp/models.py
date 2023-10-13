@@ -80,7 +80,6 @@ class DealerReview:
         # Dealer city
         self.name = name
         # Dealer Full Name
-        self.full_name = full_name
         # Dealer id
         self.purchase = purchase
         # Location lat
@@ -97,4 +96,4 @@ class DealerReview:
         self.id = id
     
     def __str__(self):
-        return "Review name: " + self.name
+        return "Review name: " + self.sentiment

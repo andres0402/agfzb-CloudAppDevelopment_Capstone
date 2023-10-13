@@ -8,6 +8,8 @@ from django.contrib.auth import login, logout, authenticate
 from django.contrib import messages
 from datetime import datetime
 import logging
+from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
+from ibmcloudant.cloudant_v1 import CloudantV1
 import json
 
 # Get an instance of a logger
@@ -68,39 +70,73 @@ def registration_request(request):
 
 # Update the `get_dealerships` view to render the index page with a list of dealerships
 def get_dealerships(request):
+    
     if request.method == "GET":
         url = "https://us-south.functions.appdomain.cloud/api/v1/web/e773bc6c-32ee-49e2-b433-0a1ac8f13eb0/dealership-package/get-dealership"
         # Get dealers from the URL
         dealerships = get_dealers_from_cf(url)
+        context = {"dealerships": dealerships}
         # Concat all dealer's short name
-        dealer_names = ' '.join([dealer.short_name for dealer in dealerships])
         # Return a list of dealer short name
-        return HttpResponse(dealer_names)
+        return render(request, 'djangoapp/index.html', context)
 
 
 # Create a `get_dealer_details` view to render the reviews of a dealer
 def get_dealer_details(request, dealer_id):
     if request.method == "GET":
-        url = "your-cloud-function-domain/reviews/review-get"
+        url = "https://us-south.functions.appdomain.cloud/api/v1/web/e773bc6c-32ee-49e2-b433-0a1ac8f13eb0/dealership-package/get-dealership"
+        # Get dealers from the URL
+        dealerships = get_dealers_from_cf(url)
+        d = None
+        for dealer in dealerships:
+            if int(dealer.id) == int(dealer_id):
+                d = dealer
         reviews = get_dealer_reviews_from_cf(url, dealer_id)
-        json_data = json.dumps(reviews)
+        context = {"reviews": reviews, "dealer_id": dealer_id, "dealer": d}
         # Return a list of dealer short name
-        return HttpResponse(json_data, content_type='application/json')
+        return render(request, 'djangoapp/dealer_details.html', context)
 # ...
 
 # Create a `add_review` view to submit a review
 def add_review(request, dealer_id):
     if request.user.is_authenticated:
-        review = {}
-        review["time"] = datetime.utcnow().isoformat()
-        review["dealership"] = 11
-        review["review"] = "This is a great car dealer"
+        context = {"dealer_id": dealer_id}
+        if request.method == "POST":
+            apikey = "dVIhdt97UGAYBfyMZ86Gc62OUxgya3-zzz63J1wxSQar"
+            service_url = "https://1b522e13-22d2-46ba-a070-0e002f16b400-bluemix.cloudantnosqldb.appdomain.cloud"
+            database_name = "reviews"
 
-        json_payload = {
-            "review" : "This is a great car dealer"
-        }
-        response = post_request("https://us-south.functions.cloud.ibm.com/api/v1/namespaces/e773bc6c-32ee-49e2-b433-0a1ac8f13eb0/actions/dealership-package/get-dealership", json_payload, dealerId = dealer_id)
-        return HttpResponse(response)
+            authenticator = IAMAuthenticator(apikey)
+            service = CloudantV1(authenticator=authenticator)
+            service.set_service_url(service_url)
+
+            data_to_store = {
+            "_id": "f89ab52a881e13008754a2988944546",
+            "_rev": "3-e3296395480f236c7405dadbdf67417",
+            "id": 6,
+            "name": request.user.username,
+            "dealership": dealer_id,
+            "review": request.POST.get('content'),
+            "purchase": request.POST.get('purchasecheck'),
+            "purchase_date": request.POST.get('purchasedate'),
+            "car_make": "Mazda",
+            "car_model": "MX-5",
+            "car_year": 2003
+            }
+
+            response = service.post_document(
+            db=database_name,
+            document=data_to_store
+            )
+
+            if response.status_code == 201:
+                print("Objeto guardado exitosamente en Cloudant.")
+            else:
+                print(f"Error al guardar el objeto. Código de estado: {response.status_code}")
+            
+            return redirect("djangoapp:dealer_details", dealer_id=dealer_id)
+
+        return render(request, 'djangoapp/add_review.html', context)
 
         
 # ...
